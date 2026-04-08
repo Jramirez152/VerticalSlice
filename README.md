@@ -1,4 +1,4 @@
-# GDIM33 Vertical Slice
+# GDIM33 Vertical Slice [impact zone]
 ## Milestone 1 Devlog
 Milestone 1 Devlog goes here.
 ## Milestone 2 Devlog
