@@ -9,6 +9,7 @@ public class Reticle : MonoBehaviour
     {
         _cam = Camera.main;
         Cursor.visible = false;
+        Cursor.lockState = CursorLockMode.Confined;
     }
 
     void Update()
