@@ -12,15 +12,28 @@ public class EnemyController : MonoBehaviour
 
     [Header("Combat")]
     public float attackDamage = 10f;
-    public float attackRange = 1.5f;
+    public float attackRange = 1.2f;
     public float attackCooldown = 1.5f;
     public float attackWindup = 0.5f;
+
+    [Header("Knockback")]
+    public float knockbackDuration = 0.3f;
+
+    [Header("Push")]
+    public bool canPush = false;
+    public float pushCooldown = 3f;
+    public float pushForce = 10f;
+    public float pushRange = 2f;
+    public float pushWindup = 0.6f;
 
     private NavMeshAgent _agent;
     private Transform _player;
     private PlayerHealth _playerHealth;
+    private PlayerController _playerController;
     private float _attackTimer;
+    private float _pushTimer;
     private bool _isWindingUp;
+    private bool _isKnockedBack;
 
     private Renderer _renderer;
     private Color _defaultColor;
@@ -39,24 +52,34 @@ public class EnemyController : MonoBehaviour
         {
             _player = playerObj.transform;
             _playerHealth = playerObj.GetComponent<PlayerHealth>();
+            _playerController = playerObj.GetComponent<PlayerController>();
         }
     }
 
     void Update()
     {
-        if (_player == null) return;
+        if (_player == null || _isWindingUp || _isKnockedBack) return;
 
-        if (!_isWindingUp)
+        _agent.SetDestination(_player.position);
+
+        float dist = Vector3.Distance(transform.position, _player.position);
+
+        
+        _attackTimer -= Time.deltaTime;
+        if (dist <= attackRange && _attackTimer <= 0f)
         {
-            _agent.SetDestination(_player.position);
+            _attackTimer = attackCooldown;
+            StartCoroutine(AttackWindup());
+        }
 
-            _attackTimer -= Time.deltaTime;
-            float dist = Vector3.Distance(transform.position, _player.position);
-
-            if (dist <= attackRange && _attackTimer <= 0f)
+        
+        if (canPush)
+        {
+            _pushTimer -= Time.deltaTime;
+            if (dist <= pushRange && _pushTimer <= 0f)
             {
-                _attackTimer = attackCooldown;
-                StartCoroutine(AttackWindup());
+                _pushTimer = pushCooldown;
+                StartCoroutine(PushWindup());
             }
         }
     }
@@ -66,7 +89,6 @@ public class EnemyController : MonoBehaviour
         _isWindingUp = true;
         _agent.isStopped = true;
 
-        // Flash red
         if (_renderer != null)
             _renderer.material.color = Color.red;
 
@@ -74,7 +96,36 @@ public class EnemyController : MonoBehaviour
 
         _playerHealth?.TakeDamage(attackDamage);
 
-        // Return to default color
+        if (_renderer != null)
+            _renderer.material.color = _defaultColor;
+
+        _agent.isStopped = false;
+        _isWindingUp = false;
+    }
+
+    IEnumerator PushWindup()
+    {
+        _isWindingUp = true;
+        _agent.isStopped = true;
+
+        
+        if (_renderer != null)
+            _renderer.material.color = Color.magenta;
+
+        yield return new WaitForSeconds(pushWindup);
+
+        
+        float dist = Vector3.Distance(transform.position, _player.position);
+        if (dist <= pushRange)
+        {
+            Vector3 pushDir = (_player.position - transform.position).normalized;
+            pushDir.y = 0f;
+
+            
+                _playerController?.ApplyKnockback(pushDir, pushForce);
+            
+        }
+
         if (_renderer != null)
             _renderer.material.color = _defaultColor;
 
@@ -84,7 +135,6 @@ public class EnemyController : MonoBehaviour
 
     public void TakeDamage(float amount)
     {
-        // Flash white briefly to show damage
         if (_renderer != null)
             StartCoroutine(DamageFlash());
 
@@ -96,6 +146,32 @@ public class EnemyController : MonoBehaviour
             Debug.Log($"{gameObject.name} died.");
             Destroy(gameObject);
         }
+    }
+
+    public void Knockback(Vector3 direction, float force)
+    {
+        StartCoroutine(KnockbackCoroutine(direction, force));
+    }
+
+    IEnumerator KnockbackCoroutine(Vector3 direction, float force)
+    {
+        _isKnockedBack = true;
+        _agent.enabled = false;
+
+        Rigidbody rb = GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.isKinematic = false;
+            rb.AddForce(direction * force, ForceMode.Impulse);
+        }
+
+        yield return new WaitForSeconds(knockbackDuration);
+
+        if (rb != null)
+            rb.isKinematic = true;
+
+        _agent.enabled = true;
+        _isKnockedBack = false;
     }
 
     IEnumerator DamageFlash()

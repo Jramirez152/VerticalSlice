@@ -1,5 +1,6 @@
-
 using UnityEngine;
+using System.Collections;
+
 [RequireComponent(typeof(Rigidbody))]
 public class PlayerController : MonoBehaviour
 {
@@ -14,15 +15,27 @@ public class PlayerController : MonoBehaviour
     [Header("Attack")]
     public float attackDuration = 0.4f;
 
-    // Current state
+    [Header("Push")]
+    public float pushDuration = 0.2f;
+    public float pushCooldown = 2f;
+    public float pushForce = 12f;
+    public float pushConeAngle = 60f;
+    public float pushRadius = 3f;
+
     public PlayerState currentState = PlayerState.Idle;
 
     private Rigidbody _rb;
     private float _stateTimer;
     private float _dashCooldownTimer;
+    private float _pushCooldownTimer;
     private Vector3 _dashDirection;
     private bool _attackHitFired;
+    private bool _pushFired;
+    private bool _isKnockedBack;
     private Camera _cam;
+
+    public float DashCooldownRemaining => _dashCooldownTimer;
+    public float PushCooldownRemaining => _pushCooldownTimer;
 
     void Awake()
     {
@@ -32,8 +45,13 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        if (_isKnockedBack) return;
+
         if (_dashCooldownTimer > 0f)
             _dashCooldownTimer -= Time.deltaTime;
+
+        if (_pushCooldownTimer > 0f)
+            _pushCooldownTimer -= Time.deltaTime;
 
         switch (currentState)
         {
@@ -41,20 +59,23 @@ public class PlayerController : MonoBehaviour
             case PlayerState.Move: UpdateMove(); break;
             case PlayerState.Attack: UpdateAttack(); break;
             case PlayerState.Dash: UpdateDash(); break;
+            case PlayerState.Push: UpdatePush(); break;
         }
 
         FaceMouseCursor();
     }
 
-    //State Updates
+    // State Updates
 
     void UpdateIdle()
     {
-        _rb.velocity = Vector3.zero;
+        if (!_isKnockedBack)
+            _rb.velocity = Vector3.zero;
 
         if (GetMoveInput().magnitude > 0.1f) { EnterMove(); return; }
         if (Input.GetMouseButtonDown(0)) { EnterAttack(); return; }
         if (Input.GetKeyDown(KeyCode.Space) && _dashCooldownTimer <= 0f) { EnterDash(); return; }
+        if (Input.GetMouseButtonDown(1) && _pushCooldownTimer <= 0f) { EnterPush(); return; }
     }
 
     void UpdateMove()
@@ -65,6 +86,7 @@ public class PlayerController : MonoBehaviour
         if (input.magnitude < 0.1f) { EnterIdle(); return; }
         if (Input.GetMouseButtonDown(0)) { EnterAttack(); return; }
         if (Input.GetKeyDown(KeyCode.Space) && _dashCooldownTimer <= 0f) { EnterDash(); return; }
+        if (Input.GetMouseButtonDown(1) && _pushCooldownTimer <= 0f) { EnterPush(); return; }
     }
 
     void UpdateAttack()
@@ -98,13 +120,33 @@ public class PlayerController : MonoBehaviour
         _stateTimer -= Time.deltaTime;
         if (_stateTimer <= 0f) EnterIdle();
     }
-    public float DashCooldownRemaining => _dashCooldownTimer; 
-    //State Transitions
+
+    void UpdatePush()
+    {
+        _rb.velocity = Vector3.zero;
+
+        _stateTimer -= Time.deltaTime;
+
+        if (!_pushFired && _stateTimer <= pushDuration * 0.5f)
+        {
+            DoPush();
+            _pushFired = true;
+        }
+
+        if (_stateTimer <= 0f)
+        {
+            _pushFired = false;
+            EnterIdle();
+        }
+    }
+
+    // State Transitions 
 
     void EnterIdle()
     {
         currentState = PlayerState.Idle;
-        _rb.velocity = Vector3.zero;
+        if (!_isKnockedBack)
+            _rb.velocity = Vector3.zero;
     }
 
     void EnterMove()
@@ -129,7 +171,16 @@ public class PlayerController : MonoBehaviour
         _dashDirection = input.magnitude > 0.1f ? input : transform.forward;
     }
 
-    //Combat
+    void EnterPush()
+    {
+        currentState = PlayerState.Push;
+        _stateTimer = pushDuration;
+        _pushCooldownTimer = pushCooldown;
+        _pushFired = false;
+        _rb.velocity = Vector3.zero;
+    }
+
+    // Combat 
 
     void DoAttackHit()
     {
@@ -145,7 +196,43 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    //Helpers
+    void DoPush()
+    {
+        Collider[] hits = Physics.OverlapSphere(transform.position, pushRadius);
+
+        foreach (var col in hits)
+        {
+            if (col.TryGetComponent<EnemyController>(out var enemy))
+            {
+                Vector3 dirToEnemy = (col.transform.position - transform.position).normalized;
+                float angle = Vector3.Angle(transform.forward, dirToEnemy);
+
+                if (angle <= pushConeAngle * 0.5f)
+                    enemy.Knockback(transform.forward, pushForce);
+            }
+        }
+    }
+
+    // Knockback
+
+    public void ApplyKnockback(Vector3 direction, float force)
+    {
+        StartCoroutine(KnockbackCoroutine(direction, force));
+    }
+
+    IEnumerator KnockbackCoroutine(Vector3 direction, float force)
+    {
+        _isKnockedBack = true;
+        currentState = PlayerState.Idle;
+        _rb.velocity = direction * force;
+
+        yield return new WaitForSeconds(0.3f);
+
+        _rb.velocity = Vector3.zero;
+        _isKnockedBack = false;
+    }
+
+    // Helpers
 
     Vector3 GetMoveInput()
     {
@@ -168,11 +255,13 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    //Gizmos
+    // Gizmos 
 
     void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position + transform.forward * 1f, 1f);
+        Gizmos.color = Color.blue;
+        Gizmos.DrawWireSphere(transform.position, pushRadius);
     }
 }

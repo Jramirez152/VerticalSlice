@@ -30,6 +30,15 @@ The complicating factor I'm building for Milestone 2 is a directional push mecha
     - Add a knockback method to EnemyController that receives a direction and force 
     - Tune the push distance to feel distinct from the dash but impactful enough to be useful
 
+### Devlog Q2 
+Honestly the task breakdown helped a lot more than I expected it to. Breaking the push mechanic into two big steps building the state and input first, then handling the directional knockback separately made it a lot easier to digest the work in chunks rather than looking at it as one big intimidating feature. It also helped when I had to step away and come back to it the next day, because I could just look at the breakdown and know exactly where I left off. If I were to improve it I'd probably take the time to write it on a big whiteboard or something if I had one at my disposal in my room or something. Having a tangible list of to-dos genuinely made the whole thing feel like i was making progress in chunks kinda like how I feel when I push commits on github.
+
+### Devlog Q3
+For this milestone I set up a custom event system where EnemySpawner.cs fires a named event called OnWaveUpdate using Unity Visual Scripting's EventBus.Trigger, passing a WaveUpdateArgs object containing the current wave number and enemy count. After getting lost in the sauce with youtube tutorials I ended up doing a lot and still came up short. The intent was for a Visual Script graph on the Canvas to receive that event, extract the wave and enemy count values using Wave Update Args: Get Wave and Wave Update Args: Get Enemy Count nodes, and then call UpdateWaveUI on PlayerHUD.cs to update the on-screen text. The graph is built and the node connections are in place, but I couldn't get the event to trigger the graph during troubleshooting in time I had for this milestone. This is entirely on me because I'm just juggling so many projects right now. The C# script involved is EnemySpawner.cs which contains the FireUpdateEvent method, and PlayerHUD.cs which contains the UpdateWaveUI method the graph was intended to call. 
+
+### Devlog Q4
+The Unity system I'd like graded for Feature 3 is NavMesh. Enemies use NavMesh Agents to pathfind toward the player across the arena, and the spike trap hazards have NavMesh Obstacle components with Carve enabled so enemies actively path around them rather than walking into them. You can see this in action by watching how enemies navigate around the spike traps in the arena during any wave.
+
 ## Milestone 3 Devlog
 Milestone 3 Devlog goes here.
 ## Milestone 4 Devlog
