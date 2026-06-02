@@ -40,7 +40,19 @@ For this milestone I set up a custom event system where EnemySpawner.cs fires a 
 The Unity system I'd like graded for Feature 3 is NavMesh. Enemies use NavMesh Agents to pathfind toward the player across the arena, and the spike trap hazards have NavMesh Obstacle components with Carve enabled so enemies actively path around them rather than walking into them. You can see this in action by watching how enemies navigate around the spike traps in the arena during any wave.
 
 ## Milestone 3 Devlog
-Milestone 3 Devlog goes here.
+
+1. I created a shader graph called ArenaFog, which is an Unlit Shader Graph with its Surface Type set to Transparent and Blend Mode set to Alpha. This allows it to render as a semi-transparent plane that sits just above the terrain.
+
+    The shader works by using the world position of each pixel on the fog plane through a Position node set to World space. The position is split into its X and Z components with a Split node, then combined into a Vector2 so only the horizontal position is used. A Length node calculates how far each pixel is from the world origin, and a Remap node converts that distance into a 0-1 range based on the size of the arena. Pixels closer to the center become more transparent, while pixels nearer the edges become more opaque.
+
+    To make the effect look more like natural fog instead of a simple radial gradient, I layered Gradient Noise over the transparency mask using a Multiply node. This creates a softer, uneven appearance. The noise is passed through a Tiling and Offset node connected to a UV node, while a Time node multiplied by a small float value drives the offset. This causes the noise pattern to slowly drift across the plane, giving the fog subtle movement and helping hide any visible tiling.
+
+    The final result is fed into the Alpha channel of the Fragment output, while a dark color is connected to the Base Color input. In the scene, the fog plane sits just above the terrain and covers the entire arena, creating a low-lying atmospheric mist effect around the edges of the map.
+![alt text](image-1.png)
+
+2. Based on feedback from the M2 playtest, I made several improvements to the project. The placeholder capsules were replaced with fully textured character models and animations, with Jill Valentine representing the player and animated zombie models representing enemies. The level was redesigned from a simple grey arena into a terrain-based outdoor environment with textures, props, lighting, and rebaked navigation for NPC movement. I also upgraded the camera to a smooth follow camera and improved player rotation so the character faces their movement direction, making animations look much more natural.
+
+3. Since Milestone 2, I added a significant amount of new content to complete the intended gameplay experience. The player and all enemy variants now use fully textured and animated character models, replacing the placeholder assets entirely. The arena was rebuilt as a Resident Evil-inspired outdoor environment featuring terrain textures, trees, lighting, and a custom fog shader, while a spotlight attached to the player helps reinforce the atmosphere. These additions bring the project much closer to its original vision of a PS1-style arcade brawler with distinct enemy types, a readable environment, and a complete three-wave gameplay loop.
 ## Milestone 4 Devlog
 Milestone 4 Devlog goes here.
 ## Final Devlog

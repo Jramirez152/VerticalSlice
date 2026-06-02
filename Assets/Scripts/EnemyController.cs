@@ -1,4 +1,3 @@
-
 using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
@@ -34,6 +33,8 @@ public class EnemyController : MonoBehaviour
     private float _pushTimer;
     private bool _isWindingUp;
     private bool _isKnockedBack;
+    private Animator _animator;
+    private string _currentAnim;
 
     private Renderer _renderer;
     private Color _defaultColor;
@@ -42,7 +43,8 @@ public class EnemyController : MonoBehaviour
     {
         currentHealth = maxHealth;
         _agent = GetComponent<NavMeshAgent>();
-        _renderer = GetComponent<Renderer>();
+        _renderer = GetComponentInChildren<Renderer>();
+        _animator = GetComponentInChildren<Animator>();
 
         if (_renderer != null)
             _defaultColor = _renderer.material.color;
@@ -54,6 +56,8 @@ public class EnemyController : MonoBehaviour
             _playerHealth = playerObj.GetComponent<PlayerHealth>();
             _playerController = playerObj.GetComponent<PlayerController>();
         }
+
+        PlayAnimation("Idle");
     }
 
     void Update()
@@ -62,9 +66,15 @@ public class EnemyController : MonoBehaviour
 
         _agent.SetDestination(_player.position);
 
+        // Drive walk/idle animation based on movement
+        if (_agent.velocity.magnitude > 0.1f)
+            PlayAnimation("Running");
+        else
+            PlayAnimation("Idle");
+        Debug.Log($"Agent velocity: {_agent.velocity.magnitude}");
         float dist = Vector3.Distance(transform.position, _player.position);
 
-        
+        // Regular attack
         _attackTimer -= Time.deltaTime;
         if (dist <= attackRange && _attackTimer <= 0f)
         {
@@ -72,7 +82,7 @@ public class EnemyController : MonoBehaviour
             StartCoroutine(AttackWindup());
         }
 
-        
+        // Push attack for big enemy
         if (canPush)
         {
             _pushTimer -= Time.deltaTime;
@@ -88,6 +98,9 @@ public class EnemyController : MonoBehaviour
     {
         _isWindingUp = true;
         _agent.isStopped = true;
+
+        yield return new WaitForSeconds(0.1f);
+        PlayAnimation("Punching");
 
         if (_renderer != null)
             _renderer.material.color = Color.red;
@@ -108,22 +121,17 @@ public class EnemyController : MonoBehaviour
         _isWindingUp = true;
         _agent.isStopped = true;
 
-        
         if (_renderer != null)
             _renderer.material.color = Color.magenta;
 
         yield return new WaitForSeconds(pushWindup);
 
-        
         float dist = Vector3.Distance(transform.position, _player.position);
         if (dist <= pushRange)
         {
             Vector3 pushDir = (_player.position - transform.position).normalized;
             pushDir.y = 0f;
-
-            
-                _playerController?.ApplyKnockback(pushDir, pushForce);
-            
+            _playerController?.ApplyKnockback(pushDir, pushForce);
         }
 
         if (_renderer != null)
@@ -176,8 +184,25 @@ public class EnemyController : MonoBehaviour
 
     IEnumerator DamageFlash()
     {
-        _renderer.material.color = Color.white;
-        yield return new WaitForSeconds(0.1f);
-        _renderer.material.color = _defaultColor;
+        if (_renderer != null)
+        {
+            _renderer.material.color = Color.white;
+            yield return new WaitForSeconds(0.1f);
+            _renderer.material.color = _defaultColor;
+        }
+    }
+
+    void PlayAnimation(string animName)
+    {
+        if (_animator == null)
+            _animator = GetComponentInChildren<Animator>();
+
+        Debug.Log($"Current: {_currentAnim}, Requested: {animName}, Same: {_currentAnim == animName}");
+
+        if (_animator != null && _animator.isActiveAndEnabled && _currentAnim != animName)
+        {
+            _animator.CrossFade(animName, 0.1f, 0);
+            _currentAnim = animName;
+        }
     }
 }

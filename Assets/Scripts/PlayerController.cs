@@ -25,6 +25,7 @@ public class PlayerController : MonoBehaviour
     public PlayerState currentState = PlayerState.Idle;
 
     private Rigidbody _rb;
+    private Animator _animator;
     private float _stateTimer;
     private float _dashCooldownTimer;
     private float _pushCooldownTimer;
@@ -36,6 +37,11 @@ public class PlayerController : MonoBehaviour
 
     public float DashCooldownRemaining => _dashCooldownTimer;
     public float PushCooldownRemaining => _pushCooldownTimer;
+
+    void Start()
+    {
+        _animator = GetComponentInChildren<Animator>();
+    }
 
     void Awake()
     {
@@ -61,14 +67,13 @@ public class PlayerController : MonoBehaviour
             case PlayerState.Dash: UpdateDash(); break;
             case PlayerState.Push: UpdatePush(); break;
         }
-
-        FaceMouseCursor();
     }
 
     // State Updates
 
     void UpdateIdle()
     {
+        FaceMouseCursor();
         if (!_isKnockedBack)
             _rb.velocity = Vector3.zero;
 
@@ -82,6 +87,7 @@ public class PlayerController : MonoBehaviour
     {
         Vector3 input = GetMoveInput();
         _rb.velocity = new Vector3(input.x * moveSpeed, _rb.velocity.y, input.z * moveSpeed);
+        FaceMovementDirection(input);
 
         if (input.magnitude < 0.1f) { EnterIdle(); return; }
         if (Input.GetMouseButtonDown(0)) { EnterAttack(); return; }
@@ -91,6 +97,7 @@ public class PlayerController : MonoBehaviour
 
     void UpdateAttack()
     {
+        FaceMouseCursor();
         Vector3 input = GetMoveInput();
         _rb.velocity = new Vector3(input.x * moveSpeed, _rb.velocity.y, input.z * moveSpeed);
 
@@ -111,6 +118,7 @@ public class PlayerController : MonoBehaviour
 
     void UpdateDash()
     {
+        FaceMovementDirection(_dashDirection);
         _rb.velocity = new Vector3(
             _dashDirection.x * dashSpeed,
             _rb.velocity.y,
@@ -123,6 +131,7 @@ public class PlayerController : MonoBehaviour
 
     void UpdatePush()
     {
+        FaceMouseCursor();
         _rb.velocity = Vector3.zero;
 
         _stateTimer -= Time.deltaTime;
@@ -145,6 +154,8 @@ public class PlayerController : MonoBehaviour
     void EnterIdle()
     {
         currentState = PlayerState.Idle;
+        PlayAnimation("Idle");
+        _animator.speed = 1f;
         if (!_isKnockedBack)
             _rb.velocity = Vector3.zero;
     }
@@ -152,11 +163,13 @@ public class PlayerController : MonoBehaviour
     void EnterMove()
     {
         currentState = PlayerState.Move;
+        PlayAnimation("Running");
     }
 
     void EnterAttack()
     {
         currentState = PlayerState.Attack;
+        PlayAnimation("Punching");
         _stateTimer = attackDuration;
         _rb.velocity = Vector3.zero;
     }
@@ -164,6 +177,8 @@ public class PlayerController : MonoBehaviour
     void EnterDash()
     {
         currentState = PlayerState.Dash;
+        PlayAnimation("Stand to Roll");
+        _animator.speed = 2f;
         _stateTimer = dashDuration;
         _dashCooldownTimer = dashCooldown;
 
@@ -174,13 +189,25 @@ public class PlayerController : MonoBehaviour
     void EnterPush()
     {
         currentState = PlayerState.Push;
+        PlayAnimation("Idle");
         _stateTimer = pushDuration;
         _pushCooldownTimer = pushCooldown;
         _pushFired = false;
         _rb.velocity = Vector3.zero;
     }
 
-    // Combat 
+    // Animation
+
+    void PlayAnimation(string animName)
+    {
+        if (_animator == null)
+            _animator = GetComponentInChildren<Animator>();
+        if (_animator != null)
+            _animator.CrossFade(animName, 0.1f);
+        Debug.Log($"Playing animation: {animName}");
+    }
+
+    // Combat
 
     void DoAttackHit()
     {
@@ -232,14 +259,7 @@ public class PlayerController : MonoBehaviour
         _isKnockedBack = false;
     }
 
-    // Helpers
-
-    Vector3 GetMoveInput()
-    {
-        float h = Input.GetAxisRaw("Horizontal");
-        float v = Input.GetAxisRaw("Vertical");
-        return new Vector3(h, 0f, v).normalized;
-    }
+    // Rotation
 
     void FaceMouseCursor()
     {
@@ -251,11 +271,34 @@ public class PlayerController : MonoBehaviour
             Vector3 dir = (target - transform.position);
             dir.y = 0f;
             if (dir.magnitude > 0.1f)
-                transform.rotation = Quaternion.LookRotation(dir);
+                transform.rotation = Quaternion.Slerp(
+                    transform.rotation,
+                    Quaternion.LookRotation(dir),
+                    15f * Time.deltaTime
+                );
         }
     }
 
-    // Gizmos 
+    void FaceMovementDirection(Vector3 moveInput)
+    {
+        if (moveInput.magnitude > 0.1f)
+            transform.rotation = Quaternion.Slerp(
+                transform.rotation,
+                Quaternion.LookRotation(moveInput),
+                15f * Time.deltaTime
+            );
+    }
+
+    // Helpers
+
+    Vector3 GetMoveInput()
+    {
+        float h = Input.GetAxisRaw("Horizontal");
+        float v = Input.GetAxisRaw("Vertical");
+        return new Vector3(h, 0f, v).normalized;
+    }
+
+    // Gizmos
 
     void OnDrawGizmosSelected()
     {
