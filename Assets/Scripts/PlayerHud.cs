@@ -6,11 +6,14 @@ public class PlayerHUD : MonoBehaviour
     [Header("References")]
     public PlayerHealth playerHealth;
     public PlayerController playerController;
+    public EnemySpawner enemySpawner;
 
     [Header("UI Elements")]
     public TextMeshProUGUI healthText;
     public TextMeshProUGUI dashText;
     public TextMeshProUGUI pushText;
+    public TextMeshProUGUI waveText;
+    public TextMeshProUGUI enemyCountText;
 
     void Update()
     {
@@ -32,16 +35,14 @@ public class PlayerHUD : MonoBehaviour
             else
                 pushText.text = "PUSH: READY";
         }
-    }
-    [Header("Wave UI")]
-    public TextMeshProUGUI waveText;
-    public TextMeshProUGUI enemyCountText;
 
-    public void UpdateWaveUI(int wave, int enemyCount)
-    {
-        if (waveText != null)
-            waveText.text = $"Wave: {wave} / 3";
-        if (enemyCountText != null)
-            enemyCountText.text = $"Enemies: {enemyCount}";
+        if (enemySpawner != null && waveText != null)
+            waveText.text = $"Wave: {enemySpawner.currentWave + 1} / 3";
+
+        if (enemySpawner != null && enemyCountText != null)
+        {
+            int count = GameObject.FindGameObjectsWithTag("Enemy").Length;
+            enemyCountText.text = $"Enemies: {count}";
+        }
     }
 }
